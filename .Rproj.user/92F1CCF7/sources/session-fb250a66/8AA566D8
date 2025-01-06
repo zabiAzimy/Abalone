@@ -1,26 +1,27 @@
 {
-    "id": "53F60FB6",
-    "path": "~/Downloads/ML2_06_SVC_College.R",
-    "project_path": null,
+    "id": "8AA566D8",
+    "path": "~/Downloads/project-ml/abalone_svr.R",
+    "project_path": "abalone_svr.R",
     "type": "r_source",
     "hash": "0",
     "contents": "",
     "dirty": false,
-    "created": 1736176156646.0,
+    "created": 1736177464554.0,
     "source_on_save": false,
-    "relative_order": 3,
+    "relative_order": 4,
     "properties": {
+        "tempName": "Untitled1",
         "source_window_id": "",
         "Source": "Source",
-        "cursorPosition": "23,20",
-        "scrollLine": "55"
+        "cursorPosition": "28,39",
+        "scrollLine": "18"
     },
     "folds": "",
-    "lastKnownWriteTime": 1736176153,
+    "lastKnownWriteTime": 1736177482,
     "encoding": "UTF-8",
     "collab_server": "",
     "source_window": "",
-    "last_content_update": 1736176153,
+    "last_content_update": 1736177482833,
     "read_only": false,
     "read_only_alternatives": []
 }
