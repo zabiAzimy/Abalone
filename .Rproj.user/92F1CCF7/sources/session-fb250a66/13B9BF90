@@ -1,0 +1,26 @@
+{
+    "id": "13B9BF90",
+    "path": "~/Downloads/project-ml/abalone.r",
+    "project_path": "abalone.r",
+    "type": "r_source",
+    "hash": "0",
+    "contents": "",
+    "dirty": true,
+    "created": 1736166393602.0,
+    "source_on_save": false,
+    "relative_order": 1,
+    "properties": {
+        "source_window_id": "",
+        "Source": "Source",
+        "cursorPosition": "48,0",
+        "scrollLine": "27"
+    },
+    "folds": "",
+    "lastKnownWriteTime": 1734555451,
+    "encoding": "UTF-8",
+    "collab_server": "",
+    "source_window": "",
+    "last_content_update": 1736169685618,
+    "read_only": false,
+    "read_only_alternatives": []
+}
