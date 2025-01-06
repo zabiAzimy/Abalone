@@ -1,0 +1,262 @@
+#==============================================================================#
+# Shrinkage Regression: Lab Section 6.5.2                                      #
+# James et al.  (https://www.statlearning.com/)                                #
+#==============================================================================#
+rm(list = ls(all.names = TRUE))
+
+
+# 00: packages -----------------------------------------------------------------
+library(glmnet)
+library (ISLR2)
+
+# 01: data preparation ---------------------------------------------------------
+data("Hitters")
+summary(Hitters)
+Hitters <- na.omit(Hitters)
+
+# 03: data exploration ---------------------------------------------------------
+hist(Hitters$Salary)
+plot(Hitters$CHits, Hitters$Salary, log="xy")
+
+# 02: ridge regression ---------------------------------------------------------
+x <- model.matrix (Salary ~ ., Hitters)[, -1]
+y <- Hitters$Salary
+grid <- 10^seq(10, -2, length = 100)
+ridge_mod <- glmnet(x, y, alpha = 0, lambda = grid)
+dim(coef(ridge_mod ))
+
+# strong penalization
+ridge_mod$lambda[50]
+coef(ridge_mod)[, 50]
+sqrt(sum(coef(ridge_mod)[-1, 50]^2))
+
+# weaker penalization
+ridge_mod$lambda[60]
+coef(ridge_mod)[, 60]
+sqrt(sum(coef(ridge_mod)[-1, 60]^2))
+
+# Add plots for change in coeff wrt lambda
+plot(grid, coef(ridge_mod)["AtBat", ], log = "x", type = "l", xlab = "lambda")
+plot(grid, coef(ridge_mod)["CHits", ], log = "x", type = "l", xlab = "lambda")
+
+plot(grid, coef(ridge_mod)[4, ], log = "x", type = "l", xlab = "lambda")
+plot(grid, coef(ridge_mod)[1, ], log = "x", type = "l", xlab = "lambda")
+plot(coef(ridge_mod)[1, ], type = "l", xlab = "lambda")
+
+# All together except the intercept
+matplot(grid, t(coef(ridge_mod)[-1, ]), type = "l", log = "x", xlab = "lambda")
+# If you plot ridge_mod then you get a very similar plot 
+plot(ridge_mod,xvar="lambda")
+
+# Predictions
+predict (ridge_mod ,s=50, type ="coefficients")[1:20 ,]
+
+# Train/Test split
+set.seed (1)
+train <- sample (1: nrow(x), nrow(x)/2)
+test <- (-train)
+y_test <- y[test]
+
+ridge_mod <- glmnet(x[train, ], y[train], alpha = 0, lambda = grid, thresh = 1e-12)
+ridge_pred <- predict(ridge_mod, s = 4, newx = x[test, ])
+# Test: MSE
+mean((ridge_pred - y_test)^2)
+
+# Intercept Model: MSE
+mean(( mean(y[train ])-y_test)^2)
+
+# Test-MSE for very large penalization
+ridge_pred <- predict (ridge_mod , s= 1e10, newx = x[test, ])
+mean((ridge_pred - y_test)^2)
+
+# Comparison with OLS regression:
+ridge_pred <- predict(ridge_mod, s = 0, newx = x[test, ], exact = TRUE, 
+                      x = x[train, ], y = y[train])
+mean((ridge_pred - y_test)^2)
+lm(y ~ x, subset =train)$coefficients
+predict(ridge_mod, s = 0, exact = TRUE, x = x[train, ], 
+        y = y[train], type = "coefficients")[1:20, ]
+
+# 02b: Ridge CV: ---------------------------------------------------------------
+set.seed (1)
+cv_out <- cv.glmnet(x[train, ], y[train], alpha = 0)
+plot(cv_out)
+bestlam = cv_out$lambda.min
+bestlam
+
+ridge_pred <- predict(ridge_mod, s = bestlam, newx = x[test, ])
+mean((ridge_pred - y_test)^2)
+
+out <- glmnet (x, y, alpha = 0)
+predict(out, type = "coefficients", s = bestlam )[1:20, ]
+
+# 03: Lasso --------------------------------------------------------------------
+lasso_mod <- glmnet(x[train, ], y[train], alpha = 1,lambda = grid)
+plot(lasso_mod)
+
+# 03b: Lasso CV: ---------------------------------------------------------------
+set.seed (1)
+cv_out <- cv.glmnet(x[train, ], y[train], alpha = 1)
+plot(cv_out)
+bestlam <- cv_out$lambda.min
+bestlam
+lasso.pred <- predict(lasso_mod, s = bestlam, newx = x[test, ])
+mean((lasso.pred - y_test)^2)
+
+out <- glmnet(x, y, alpha = 1, lambda = grid)
+lasso_coef <- predict(out, type = "coefficients", s = bestlam)[1:20, ]
+lasso_coef
+lasso_coef[lasso_coef !=0]
+
+
+####################
+#
+#now with Auto
+
+x=model.matrix (mpg~horsepower+I(horsepower ^2)+
+                  cylinders+displacement+weight+acceleration
+                +year,mtcars)[,-1]
+y=mtcars$mpg
+grid =10^ seq (10,-2, length =100)
+
+data("mtcars")
+x <- model.matrix(mpg ~ hp + I(hp^2) + cyl + disp + drat + wt + qsec + vs +
+                    am + gear + carb,
+                  data = mtcars)[, -1]
+
+y <- mtcars$mpg
+grid <- 10^seq(10, -2, length = 100)
+
+#alpha=0 -> Ridge Regression
+ridge_mod =glmnet (x,y,alpha =0, lambda =grid)
+dim(coef(ridge_mod ))
+ridge_mod$lambda[50]
+coef(ridge_mod)[,50]
+##sum of squared parameters for this lambda 
+sqrt(sum(coef(ridge_mod)[ -1 ,50]^2))
+
+ridge_mod$lambda [60]
+coef(ridge_mod)[,60]
+sqrt(sum(coef(ridge_mod)[ -1 ,60]^2) )
+
+plot(grid,coef(ridge_mod)["hp",],log="x",type="l",xlab="lambda")
+plot(grid,coef(ridge_mod)["qsec",],log="x",type="l",xlab="lambda")
+
+#cylinders coefficient
+plot(grid,coef(ridge_mod)["cyl",],log="x",type="l",xlab="lambda")
+#intercept coefficient
+plot(grid,coef(ridge_mod)["(Intercept)",],log="x",type="l",xlab="lambda")
+
+#all coefficients
+matplot(grid,t(coef(ridge_mod)[-1,]),type="l",log="x",xlab="lambda")
+#similar plot provided by glmnet 
+plot(ridge_mod,xvar="lambda")
+
+#coefficients when lambda=50 (s=50) 
+predict(ridge_mod ,s=50, type ="coefficients")[1:8 ,]
+
+#fit using a training set and compare using the test data set
+set.seed (1)
+train=sample (1: nrow(x), nrow(x)/2)
+test=(-train)
+y_test=y[test]
+ridge_mod =glmnet (x[train ,],y[train],alpha =0, lambda =grid ,
+                   thresh =1e-12)
+##predictions on test data when lambda=4
+ridge_pred=predict (ridge_mod ,s=4, newx=x[test ,])
+##MSE-test when lambda=4
+mean(( ridge_pred -y_test)^2)
+
+
+##MSE-test when lambda=infinity (null model)
+mean(( mean(y[train ])-y_test)^2)
+
+rpMSE<-rep(NA,100)
+for(i in 1:100){
+  #predict  type="coefficients" output the coefficients for this value lambda (s)
+  #         newx= test x data predicted values
+  ridge_pred=predict (ridge_mod ,s=grid[i], newx=x[test ,])
+  rpMSE[i]<-   mean(( ridge_pred -y_test)^2)
+}
+#The MSE-Test for different values of lambda
+plot(grid,rpMSE,log="x",type="l")
+#Note that the minimum is near to zero
+
+#When lamda very large we get the same  MSE-Train as when we 
+#take the mean of the y values directly
+ridge_pred=predict (ridge_mod ,s=1e10 ,newx=x[test ,])
+mean((ridge_pred -y_test)^2)
+
+
+#fit a "ridge regression" for lambda=0
+
+#error in book below
+ridge_pred=predict (ridge_mod ,s=0, newx=x[test ,], exact=T)
+#error in book above 
+##use the following command instead
+
+ridge_pred=predict(ridge_mod ,s=0, newx=x[test ,], exact=T,x=x[train ,],y=y[train])
+mean((ridge_pred -y_test)^2)
+
+
+#CV
+set.seed (1)
+#use the default set of lambdas
+cv_out =cv.glmnet(x[train ,],y[train],alpha =0)
+plot(cv_out)
+###minimum CV-MSE is by the smallest value of lambda 
+bestlam =cv_out$lambda.min
+bestlam
+range(cv_out$lambda)
+#bestlam is the smallest value of lambda, not good 
+
+#try with another lambda-grid with a much lower starting value
+grid2 =seq (0.00001,1.0, length =100)
+cv_out =cv.glmnet(x[train ,],y[train],lambda=grid2,alpha =0)
+plot(cv_out)
+bestlam =cv_out$lambda.min
+bestlam
+range(cv_out$lambda)
+#bestlam is still the smallest value of lambda used, not good 
+
+#it looks like lambda=0 is the best lambda
+ridge_pred=predict(ridge_mod ,s=0, newx=x[test ,], exact=T,x=x[train ,],y=y[train])
+mean((ridge_pred -y_test)^2)
+###8.49
+lm.obj<-lm(mpg~horsepower+I(horsepower ^2)+
+             cylinders+displacement+weight+acceleration
+           +year,data=Auto,subset=train)
+lse.pred<-predict.lm(lm.obj,Auto[test,])
+mean((lse.pred-y_test)^2)
+###8.49
+
+
+####now quickly run through the same using the lasso (alpha=1)
+lasso_mod =glmnet (x[train ,],y[train],alpha =1, lambda =grid)
+plot(lasso_mod,xvar="lambda")
+
+
+set.seed (1)
+cv_out =cv.glmnet (x[train ,],y[train],alpha =1)
+plot(cv_out)
+cv_out =cv.glmnet (x[train ,],y[train],alpha =1,lambda=grid2)
+plot(cv_out)
+bestlam =cv_out$lambda.min
+bestlam
+#so again the best lambda is equal to 0 -> least squares regression 
+#and the same results as with ridge regression  
+
+###lm. model from cross validation model selection 
+### workshop 5
+## fitted using these training data
+lm.cv.obj<-lm(mpg~horsepower +I(horsepower ^2)+ year + weight
+              ,data=Auto,subset=train)
+select.pred<-predict.lm(lm.cv.obj,Auto[test,])
+###Test MSE using model selection
+mean((select.pred-y_test)^2)
+###Test MSE using least squares/shrinkage methods
+mean((lse.pred-y_test)^2)
+
+
+
+
