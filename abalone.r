@@ -1,88 +1,102 @@
-# Load necessary library
-library(randomForest)
+# Load necessary libraries
 library(caret)
-
-# Install the library if required
-install.packages("caret")
-# Load the necessary library for SVR
-install.packages("e1071")
 library(e1071)
 
+# Set random seed for reproducibility
+set.seed(123)
 
-# Column names as described in the .names file
+# Define column names for the dataset
 column_names <- c("Sex", "Length", "Diameter", "Height", 
                   "WholeWeight", "ShuckedWeight", 
                   "VisceraWeight", "ShellWeight", "Rings")
 
 # Read the dataset into R
-abalone_data <- read.csv('abalone/abalone.data', header = FALSE, col.names = column_names)
+abalone_data <- read.csv('Abalone/abalone/abalone.data', header = FALSE, col.names = column_names)
 
-# dimension of the dataset
-dim(abalone_data)
+# Check for missing values
+cat("Number of missing values:", sum(is.na(abalone_data)), "\n")
 
-# Check the first few rows
-head(abalone_data)
-
-# View the structure of the data
-str(abalone_data)
-
-# Prepare data
-set.seed(123)  # For reproducibility
+# Convert 'Sex' to a factor
 abalone_data$Sex <- as.factor(abalone_data$Sex)
 
-# look at the first rows of the dataset
-head(abalone_data)
-str(abalone_data)
-
-summary(abalone_data)
 # Split data into training (80%) and test (20%) sets
 train_index <- createDataPartition(abalone_data$Rings, p = 0.8, list = FALSE)
 train_data <- abalone_data[train_index, ]
 test_data <- abalone_data[-train_index, ]
 
+# Scale the numeric features in training data
+numeric_cols <- setdiff(names(train_data), "Sex")  # Exclude the 'Sex' column
+train_data_scaled <- train_data
+train_data_scaled[numeric_cols] <- scale(train_data[numeric_cols])
 
-# Check the sizes of each set
-cat("Training set size:", nrow(train_data), "\n")
-cat("Test set size:", nrow(test_data), "\n")
+# Scale the numeric features in test data using training data's parameters
+test_data_scaled <- test_data
+test_data_scaled[numeric_cols] <- scale(test_data[numeric_cols], 
+                                        center = attr(scale(train_data[numeric_cols]), "scaled:center"),
+                                        scale = attr(scale(train_data[numeric_cols]), "scaled:scale"))
+
+# Dummy variable encoding for 'Sex' in training data
+dummy_vars_train <- dummyVars(~ Sex, data = train_data_scaled)
+dummy_sex_train <- predict(dummy_vars_train, newdata = train_data_scaled)
+train_data_final <- cbind(dummy_sex_train, train_data_scaled[, -which(names(train_data_scaled) == "Sex")])
+
+# Dummy variable encoding for 'Sex' in test data
+dummy_vars_test <- dummyVars(~ Sex, data = test_data_scaled)
+dummy_sex_test <- predict(dummy_vars_test, newdata = test_data_scaled)
+test_data_final <- cbind(dummy_sex_test, test_data_scaled[, -which(names(test_data_scaled) == "Sex")])
+
+# Define training control for cross-validation
+train_control <- trainControl(method = "cv", number = 5)  # 5-fold cross-validation
+
+### 1. SVR with Linear Kernel
+set.seed(123)
+svr_linear_model <- train(
+  Rings ~ ., 
+  data = train_data_final, 
+  method = "svmLinear",
+  trControl = train_control,
+  tuneGrid = expand.grid(C = seq(0.1, 2, by = 0.2))  # Grid search for 'C'
+)
+
+# Best hyperparameters for linear kernel
+cat("Best parameters for linear kernel:\n")
+print(svr_linear_model$bestTune)
+
+# look at the model summary
+svr_linear_model
+
+# Make predictions and evaluate performance
+linear_predictions <- predict(svr_linear_model, newdata = test_data_final)
+linear_rmse <- sqrt(mean((linear_predictions - test_data_final$Rings)^2))
+cat("Linear Kernel RMSE:", linear_rmse, "\n")
 
 
-# Train the SVR model
-set.seed(123)  # For reproducibility
-svr_model <- svm(Rings ~ ., data = train_data, kernel = "radial", cost = 1, gamma = 0.1)
+### 2. SVR with RBF (Radial Basis Function) Kernel
+set.seed(123)
+svr_rbf_model <- train(
+  Rings ~ ., 
+  data = train_data_final, 
+  method = "svmRadial",
+  trControl = train_control,
+  tuneGrid = expand.grid(
+    sigma = c(0.01, 0.05, 0.1),  # Grid search for 'sigma'
+    C = seq(0.1, 2, by = 0.2)    # Grid search for 'C'
+  )
+)
 
-# Summarize the model
-summary(svr_model)
+# look at the model summary
+svr_rbf_model
 
-# Predict on the test set
-svr_predictions <- predict(svr_model, test_data)
+# Best hyperparameters for RBF kernel
+cat("Best parameters for RBF kernel:\n")
+print(svr_rbf_model$bestTune)
 
-# Evaluate model performance
-MAE <- mean(abs(svr_predictions - test_data$Rings))
-RMSE <- sqrt(mean((svr_predictions - test_data$Rings)^2))
-
-cat("Mean Absolute Error (MAE):", MAE, "\n")
-cat("Root Mean Square Error (RMSE):", RMSE, "\n")
-
-
-# Train the SVR model with a linear kernel
-set.seed(123)  # For reproducibility
-svr_model_linear <- svm(Rings ~ ., data = train_data, kernel = "linear", cost = 1)
-
-# Summarize the model
-summary(svr_model_linear)
-
-# Predict on the test set
-svr_predictions_linear <- predict(svr_model_linear, test_data)
-
-# Evaluate model performance
-MAE_linear <- mean(abs(svr_predictions_linear - test_data$Rings))
-RMSE_linear <- sqrt(mean((svr_predictions_linear - test_data$Rings)^2))
-
-cat("Mean Absolute Error (MAE) with Linear Kernel:", MAE_linear, "\n")
-cat("Root Mean Square Error (RMSE) with Linear Kernel:", RMSE_linear, "\n")
+# Make predictions and evaluate performance
+rbf_predictions <- predict(svr_rbf_model, newdata = test_data_final)
+rbf_rmse <- sqrt(mean((rbf_predictions - test_data_final$Rings)^2))
+cat("RBF Kernel RMSE:", rbf_rmse, "\n")
 
 
-
-
-
-
+# These results indicate that the RBF kernel (non-linear) performs better than the 
+# linear kernel for predicting the target variable Rings
+# as evidenced by its lower Root Mean Squared Error (RMSE) of 0.6304323 compared to 0.6880048 Of Linear kernel
